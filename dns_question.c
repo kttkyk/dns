@@ -47,7 +47,7 @@ void hexdump(unsigned char *data, unsigned int data_bytes)
 
 /*
  * Adapt the domain format from usual format to dns format.
- * eg.)www.example.com -> \3www\6example\3com\0
+ * eg.)www.example.com -> \x3www\x6example\x3com\x0
  */
 static char *adapt_domain_format(char *domain, char *adapted_domain)
 {
@@ -77,15 +77,36 @@ static char *adapt_domain_format(char *domain, char *adapted_domain)
 }
 
 
-/*Call srand() before use*/
-static unsigned int build_dns_query(char *domain, uint8_t *dns_query)
+unsigned int build_question_section(char *domain, uint8_t *dns_question_section)
 {
     uint8_t *qname;
-    unsigned int question_offset_bytes;
+    unsigned int qtype_offset_bytes;
+    unsigned int question_section_bytes;
+
+    struct question_t *question;
+
+    qname = dns_question_section;
+    adapt_domain_format(domain, (char *)qname);
+
+    //+ 1: To count the NULL byte at the end of qname
+    qtype_offset_bytes = strlen((char *)qname) + 1;
+    question = (struct question_t *)(dns_question_section + qtype_offset_bytes);
+    question->type = htons(1);
+    question->class = htons(1);
+
+    question_section_bytes = qtype_offset_bytes + sizeof(struct question_t);
+    return question_section_bytes;
+}
+
+
+/*Call srand() before use*/
+unsigned int build_dns_query(char *domain, uint8_t *dns_query)
+{
+    uint8_t *qname;
+    unsigned int question_section_bytes;
     unsigned int dns_query_bytes;
 
     struct dns_hdr_t *dns_hdr;
-    struct question_t *question;
 
     dns_hdr = (struct dns_hdr_t *)dns_query;
 
@@ -106,14 +127,9 @@ static unsigned int build_dns_query(char *domain, uint8_t *dns_query)
     dns_hdr->arcount = 0;
 
     qname = (uint8_t *)(dns_query + sizeof(struct dns_hdr_t));
-    adapt_domain_format(domain, (char *)qname);
+    question_section_bytes = build_question_section(domain, qname);
 
-    question_offset_bytes = sizeof(struct dns_hdr_t) + strlen((char *)qname) + 1;
-    question = (struct question_t *)(dns_query + question_offset_bytes);
-    question->type = htons(1);
-    question->class = htons(1);
-
-    dns_query_bytes = question_offset_bytes + sizeof(struct question_t);
+    dns_query_bytes = sizeof(struct dns_hdr_t) + question_section_bytes;
     return dns_query_bytes;
 }
 
@@ -147,34 +163,34 @@ void recv_dns_response(int sock, struct sockaddr_in dst_addr)
 }
 
 
-int main(int argc, char *argv[])
-{
-    int sock;
-    char *dns_server_ip = "8.8.8.8";//Google DNS
-    //char *dns_server_ip = "127.0.0.1";//loopback
-    char *domain = "www.google.com";
-    struct sockaddr_in dst_addr;
-
-    if(argc == 2){
-        domain = argv[1];
-    }else if(argc > 2){
-        printf("Input only one domain as a argument.\n");
-        return 1;
-    }
-
-    if((sock = socket(AF_INET, SOCK_DGRAM, 0)) < 0){
-        perror("socket");
-    }
-
-    dst_addr.sin_family = AF_INET;
-    dst_addr.sin_port = htons(53);
-    inet_aton(dns_server_ip, &dst_addr.sin_addr);
-
-    srand((unsigned)time(NULL));
-
-    send_dns_query(domain, dns_server_ip, sock, dst_addr);
-
-    recv_dns_response(sock, dst_addr);
-
-    return 0;
-}
+//int main(int argc, char *argv[])
+//{
+//    int sock;
+//    char *dns_server_ip = "8.8.8.8";//Google DNS
+//    //char *dns_server_ip = "127.0.0.1";//loopback
+//    char *domain = "www.google.com";
+//    struct sockaddr_in dst_addr;
+//
+//    if(argc == 2){
+//        domain = argv[1];
+//    }else if(argc > 2){
+//        printf("Input only one domain as a argument.\n");
+//        return 1;
+//    }
+//
+//    if((sock = socket(AF_INET, SOCK_DGRAM, 0)) < 0){
+//        perror("socket");
+//    }
+//
+//    dst_addr.sin_family = AF_INET;
+//    dst_addr.sin_port = htons(53);
+//    inet_aton(dns_server_ip, &dst_addr.sin_addr);
+//
+//    srand((unsigned)time(NULL));
+//
+//    send_dns_query(domain, dns_server_ip, sock, dst_addr);
+//
+//    recv_dns_response(sock, dst_addr);
+//
+//    return 0;
+//}

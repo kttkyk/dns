@@ -1,3 +1,9 @@
+#ifndef DNS_H
+#define DNS_H
+
+#include <stdint.h>
+
+
 struct dns_hdr_t
 {
     uint16_t id;
@@ -30,12 +36,20 @@ struct question_t
 };
 
 
+//The rdata is for ip address only(4 bytes)
 struct resource_t
 {
     uint16_t name;
     uint16_t type;
     uint16_t class;
-    uint16_t ttl;
+    uint32_t ttl;
     uint16_t rdlength;
-    uint8_t *rdata_p;
-};
+    uint32_t rdata;
+}__attribute((__packed__));
+
+
+unsigned int build_question_section(char *domain, uint8_t *dns_question_section);
+void send_dns_query(char *domain, char *dns_server_ip, int sock, struct sockaddr_in dst_addr);
+void recv_dns_response(int sock, struct sockaddr_in dst_addr);
+
+#endif
