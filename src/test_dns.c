@@ -8,8 +8,8 @@
 #include <arpa/inet.h>
 #include <time.h>
 
-#include "../dns.h"
-#include "../utils.h"
+#include "../lib/dns.h"
+#include "../lib/utils.h"
 
 
 #define MAX_BUF_BYTES 1024

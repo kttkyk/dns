@@ -145,37 +145,3 @@ void recv_dns_response(int sock, struct sockaddr_in dst_addr)
     hexdump((unsigned char *)buf, recv_bytes);
 }
 
-
-/*
-int main(int argc, char *argv[])
-{
-    int sock;
-    char *dns_server_ip = "8.8.8.8";//Google DNS
-    //char *dns_server_ip = "127.0.0.1";//loopback
-    char *domain = "www.google.com";
-    struct sockaddr_in dst_addr;
-
-    if(argc == 2){
-        domain = argv[1];
-    }else if(argc > 2){
-        printf("Input only one domain as a argument.\n");
-        return 1;
-    }
-
-    if((sock = socket(AF_INET, SOCK_DGRAM, 0)) < 0){
-        perror("socket");
-    }
-
-    dst_addr.sin_family = AF_INET;
-    dst_addr.sin_port = htons(53);
-    inet_aton(dns_server_ip, &dst_addr.sin_addr);
-
-    srand((unsigned)time(NULL));
-
-    send_dns_query(domain, dns_server_ip, sock, dst_addr);
-
-    recv_dns_response(sock, dst_addr);
-
-    return 0;
-}
-*/

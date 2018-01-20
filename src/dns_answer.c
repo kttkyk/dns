@@ -129,32 +129,3 @@ void send_spoofed_dns_response(uint16_t id, char *target_ip, char *target_domain
     send_udp_packet(raw_sock, src_addr, dst_addr, dns_response, dns_response_bytes);
 }
 
-
-
-int main(int argc, char *argv[])
-{
-    int sock;
-    unsigned int id;
-    char *host_ip = "127.0.0.1";
-    char *target_domain = "hogehogefugafuga.com";
-    char *target_ip = "192.168.100.100";
-    struct sockaddr_in dst_addr;
-
-    if((sock = socket(AF_INET, SOCK_DGRAM, 0)) < 0){
-        perror("socket");
-    }
-
-    dst_addr.sin_family = AF_INET;
-    dst_addr.sin_port = htons(2000);//TODO
-    inet_aton(host_ip, &dst_addr.sin_addr);
-
-    srand((unsigned)time(NULL));
-
-    id = (uint16_t)rand();
-    id = 0;
-    send_dns_response(id, target_ip, target_domain, sock, dst_addr);
-
-    return 0;
-}
-
-
