@@ -4,45 +4,16 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <netinet/in.h>
+#include <linux/if_ether.h>
 #include <unistd.h>
 #include <stdint.h>
 #include <ctype.h>
 #include <time.h>
 #include <stdlib.h>
 
-#include "dns.h"
-
-
-void hexdump(unsigned char *data, unsigned int data_bytes)
-{
-    int bin_p, ascii_p;
-
-    bin_p = ascii_p = 0;
-
-    while(bin_p < data_bytes){
-        int j;
-        int whitespaces;
-        for(j = 0; j < 8 && bin_p < data_bytes; j++){
-            printf("%02x ", data[bin_p++]);
-        }
-
-        whitespaces = (8 - j) * 3;
-        for(j = 0; j < whitespaces; j++){
-            printf(" ");
-        }
-
-        for(j = 0; j < 8 && ascii_p < data_bytes; j++){
-            if(isprint(data[ascii_p])){
-                printf("%c", data[ascii_p++]);
-            }else{
-                printf(".");
-                ascii_p++;
-            }
-        }
-
-        printf("\n");
-    }
-}
+#include "../lib/dns.h"
+#include "../lib/udp.h"
+#include "../lib/utils.h"
 
 
 /*
@@ -134,9 +105,11 @@ unsigned int build_dns_query(char *domain, uint8_t *dns_query)
 }
 
 
-void send_dns_query(char *domain, char *dns_server_ip, int sock, struct sockaddr_in dst_addr)
+#define MAX_DNS_QUERY_LEN 1024
+
+void send_dns_query(char *domain, int sock, struct sockaddr_in dst_addr)
 {
-    uint8_t dns_query[1024];
+    uint8_t dns_query[MAX_DNS_QUERY_LEN];
     unsigned int dns_query_bytes;
 
     dns_query_bytes = build_dns_query(domain, dns_query);
@@ -144,6 +117,16 @@ void send_dns_query(char *domain, char *dns_server_ip, int sock, struct sockaddr
     if(sendto(sock, dns_query, dns_query_bytes, 0, (struct sockaddr *)&dst_addr, sizeof(dst_addr)) < 0){
         perror("sendto");
     }
+}
+
+
+void send_spoofed_dns_query(char *domain, int raw_sock, struct sockaddr_in src_addr, struct sockaddr_in dst_addr)
+{
+    uint8_t dns_query[MAX_DNS_QUERY_LEN];
+    unsigned int dns_query_bytes;
+
+    dns_query_bytes = build_dns_query(domain, dns_query);
+    send_udp_packet(raw_sock, src_addr, dst_addr, dns_query, dns_query_bytes);
 }
 
 
@@ -163,34 +146,36 @@ void recv_dns_response(int sock, struct sockaddr_in dst_addr)
 }
 
 
-//int main(int argc, char *argv[])
-//{
-//    int sock;
-//    char *dns_server_ip = "8.8.8.8";//Google DNS
-//    //char *dns_server_ip = "127.0.0.1";//loopback
-//    char *domain = "www.google.com";
-//    struct sockaddr_in dst_addr;
-//
-//    if(argc == 2){
-//        domain = argv[1];
-//    }else if(argc > 2){
-//        printf("Input only one domain as a argument.\n");
-//        return 1;
-//    }
-//
-//    if((sock = socket(AF_INET, SOCK_DGRAM, 0)) < 0){
-//        perror("socket");
-//    }
-//
-//    dst_addr.sin_family = AF_INET;
-//    dst_addr.sin_port = htons(53);
-//    inet_aton(dns_server_ip, &dst_addr.sin_addr);
-//
-//    srand((unsigned)time(NULL));
-//
-//    send_dns_query(domain, dns_server_ip, sock, dst_addr);
-//
-//    recv_dns_response(sock, dst_addr);
-//
-//    return 0;
-//}
+/*
+int main(int argc, char *argv[])
+{
+    int sock;
+    char *dns_server_ip = "8.8.8.8";//Google DNS
+    //char *dns_server_ip = "127.0.0.1";//loopback
+    char *domain = "www.google.com";
+    struct sockaddr_in dst_addr;
+
+    if(argc == 2){
+        domain = argv[1];
+    }else if(argc > 2){
+        printf("Input only one domain as a argument.\n");
+        return 1;
+    }
+
+    if((sock = socket(AF_INET, SOCK_DGRAM, 0)) < 0){
+        perror("socket");
+    }
+
+    dst_addr.sin_family = AF_INET;
+    dst_addr.sin_port = htons(53);
+    inet_aton(dns_server_ip, &dst_addr.sin_addr);
+
+    srand((unsigned)time(NULL));
+
+    send_dns_query(domain, dns_server_ip, sock, dst_addr);
+
+    recv_dns_response(sock, dst_addr);
+
+    return 0;
+}
+*/

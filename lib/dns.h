@@ -2,6 +2,9 @@
 #define DNS_H
 
 #include <stdint.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <arpa/inet.h>
 
 
 struct dns_hdr_t
@@ -49,7 +52,11 @@ struct resource_t
 
 
 unsigned int build_question_section(char *domain, uint8_t *dns_question_section);
-void send_dns_query(char *domain, char *dns_server_ip, int sock, struct sockaddr_in dst_addr);
+unsigned int build_dns_query(char *domain, uint8_t *dns_query);
+void send_dns_query(char *domain, int sock, struct sockaddr_in dst_addr);
+void send_spoofed_dns_query(char *domain, int raw_sock, struct sockaddr_in src_addr, struct sockaddr_in dst_addr);
 void recv_dns_response(int sock, struct sockaddr_in dst_addr);
-
+void send_spoofed_dns_response(uint16_t id, char *target_ip, char *target_domain, int raw_sock, struct sockaddr_in dst_addr);
+unsigned int build_dns_response(uint16_t id, char *target_domain, char *target_ip, uint8_t *dns_response);
 #endif
+

