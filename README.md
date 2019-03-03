@@ -1,1 +1,1 @@
-# DNS programs for study
+# DNS programs for education
